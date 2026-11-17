@@ -35,13 +35,13 @@ test('連續失敗：第 2 次與第 4 次相同簽名才提醒、成功與換�
   expect(call(true, "The user doesn't want to proceed with this tool use")).toBeUndefined()
 })
 
-test('連續失敗導引：Edit／MultiEdit 指路 Grep 與 safe-replace，Read 指路 Glob，其他工具維持原句', () => {
+test('連續失敗導引：Edit／MultiEdit 指路 Grep 與 Read，Read 指路 Glob，其他工具維持原句', () => {
   for (const tool of ['Edit', 'MultiEdit']) {
     const n = retryNudgeText(tool, 'String to replace not found')
     expect(n).toContain(`${tool} 連續兩次因同樣原因失敗`)
     expect(n).toContain('Grep (rg -F)')
     expect(n).toContain('Read (指定 offset/limit)')
-    expect(n).toContain('node ~/.claude/tools/safe-replace.mjs')
+    expect(n).toContain('逐一替換')
   }
   const r = retryNudgeText('Read', 'File does not exist')
   expect(r).toContain('Read 連續兩次失敗')
@@ -50,6 +50,11 @@ test('連續失敗導引：Edit／MultiEdit 指路 Grep 與 safe-replace，Read 
   const b = retryNudgeText('Bash', 'Exit code 1')
   expect(b).toContain('這個工具（Bash）')
   expect(b).toContain('暫時性的（逾時、還在載入、連線中斷）')
+})
+
+test('fork-patch: kein safe-replace', () => {
+  for (const tool of ['Edit', 'MultiEdit', 'Read', 'Bash'])
+    expect(retryNudgeText(tool, 'String to replace not found')).not.toContain('safe-replace')
 })
 
 test('連續失敗：提醒帶工具名與簡短錯誤；不同工具分開算', () => {
@@ -161,7 +166,7 @@ test('重複失敗：Edit 連敗時透過 tool.call 附上跨檔編輯導引', a
   await $.tool.call({ tool: 'Edit', file_path: 'a.ts', old_string: 'a', new_string: 'b' })
   const r = await $.tool.call({ tool: 'Edit', file_path: 'a.ts', old_string: 'a', new_string: 'b' })
   expect(r.context?.[0]).toContain('Grep (rg -F)')
-  expect(r.context?.[0]).toContain('safe-replace.mjs')
+  expect(r.context?.[0]).toContain('逐一替換')
 })
 
 test('重複失敗：和守門提醒並存，守門的 deny 不受影響', async ($, on) => {

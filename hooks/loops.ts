@@ -33,8 +33,10 @@ const briefOf = (text: string | undefined) => {
 
 export const retryNudgeText = (tool: string, text: string | undefined) => {
   const sample = briefOf(text) || '沒有錯誤文字'
+  // fork-patch: Upstream empfahl hier ein Ersatz-Skript unter ~/.claude/tools, das der Mod nicht mitliefert;
+  // wer es anlegt, bringt ungeprueften Code zur Ausfuehrung. Der Hinweis nennt nur noch Grep/Read.
   if (tool === 'Edit' || tool === 'MultiEdit')
-    return `${tag} ${tool} 連續兩次因同樣原因失敗（${sample}）。請勿憑記憶跨檔盲猜縮排或上下文：先用 Grep (rg -F) 或 Read (指定 offset/limit) 確認精確行號與原文；若為多處替換請改用 node ~/.claude/tools/safe-replace.mjs。`
+    return `${tag} ${tool} 連續兩次因同樣原因失敗（${sample}）。請勿憑記憶跨檔盲猜縮排或上下文：先用 Grep (rg -F) 或 Read (指定 offset/limit) 確認精確行號與原文，再針對該處逐一替換。`
   if (tool === 'Read')
     return `${tag} Read 連續兩次失敗（${sample}）。請勿繼續猜測路徑，先用 Glob 搜尋檔名或確認父目錄。`
   return `${tag} 這個工具（${tool}）連續兩次因同樣原因失敗（${sample}）。錯誤看起來是暫時性的（逾時、還在載入、連線中斷）就稍等再試一次；不是的話先找出原因並換一個做法，不要原樣重試。`
