@@ -1,7 +1,7 @@
 // 流程：背景整理學到的多步驟固定做法。存進經驗檔的「## 流程」、不帶入新對話，次數夠多時交給 AI 做成專案的 skill
 import { expect, test } from 'claude-code/testing'
 import type { Engine } from 'claude-code/testing'
-import { actionsReply, cmd, ctl, distillNow, lastOf, NOTES, NOTES_PATH, openPanel, say, startSession, world } from './test-world'
+import { actionsReply, cmd, ctl, distillNow, lastOf, NOTES, NOTES_PATH, openPanel, startSession, world } from './test-world'
 import { parseNotes, renderNotes } from './notes'
 
 const RELEASE = {
@@ -161,67 +161,13 @@ test('流程：不帶入新對話（只有流程時連專案經驗區塊都沒�
   expect((await $.prompt.context({ blocks: [] })).blocks).toEqual([])
 })
 
-test('流程：git repo 裡出現 3 次以上就交代 AI 做成 skill；不到 3 次、不是 git repo 不交代', async ($, on) => {
+// fork-patch: Die Promotion von Ablaeufen zu Skills ist abgeschaltet (register.ts FORK_PROMOTE_DISABLED).
+// Die vier Upstream-Tests dazu sind durch diese Gegenprobe ersetzt.
+test('fork-patch: Ablauf (3 mal) in einem git repo erzeugt keinen Promotion-Block', async ($, on) => {
   const w = world(on, 100_000)
   w.files.set('C:/proj/.git', '')
-  w.files.set(NOTES, withProcedure(2))
-  await startSession($)
-  expect(await promoteBlockOf($)).toBeUndefined()
-  w.files.set(NOTES, withProcedure(3))
-  const text = (await promoteBlockOf($)) ?? ''
-  expect(text).toContain('- 流程「發版」（3 次）：要發新版本時｜步驟：1. 改 plugin.json 的版本號；2. 打 tag；3. 建立 GitHub release')
-  expect(text).toContain('.claude/skills/<kebab-case 名稱>/SKILL.md')
-  expect(text).toContain('frontmatter 有 name')
-  expect(text).toContain('description')
-  expect(text).toContain('不要另開重複的')
-  expect(text).toContain('不要 commit 或 push')
-  expect(text).toContain('不用呼叫任何工具回報')
-  expect(Object.keys(w.get('promote:C--proj') as object)).toEqual(['p:發版'])
-})
-
-test('流程：沒有流程的交代文字不提 skill', async ($, on) => {
-  const w = world(on, 100_000)
-  w.files.set('C:/proj/.git', '')
-  w.files.set(NOTES, ['# x', '', '## 規則', '', '### 規則三（3 次）', '- 規則：做 Z', ''].join('\n'))
-  await startSession($)
-  const text = (await promoteBlockOf($)) ?? ''
-  expect(text).toContain('規則三')
-  expect(text).not.toContain('SKILL.md')
-  expect(text).toContain('4. 完成後在回覆最後')
-})
-
-test('流程：不是 git repo 不交代；交給的對話還在時不重複交代，它結束就再交代', async ($, on) => {
-  const w = world(on, 100_000)
   w.files.set(NOTES, withProcedure(3))
   await startSession($)
-  expect(await promoteBlockOf($)).toBeUndefined()
-  w.files.set('C:/proj/.git', '')
-  expect(await promoteBlockOf($)).toContain('流程「發版」')
-  expect(await promoteBlockOf($)).toBeUndefined()
-  await $.session.end({ reason: 'prompt_input_exit', sessionId: 'S1', resume: { id: 'S1' } })
-  ctl.curSid = 'S2'
-  expect(await promoteBlockOf($)).toContain('流程「發版」')
-})
-
-test('流程：整理認出 skill 放好就記「已在」，不再交代；使用者不要就記「不放」', async ($, on) => {
-  const w = world(on, 100_000, 1_000_000, {}, [], 5)
-  w.files.set('C:/proj/.git', '')
-  w.files.set('C:/proj/.claude/skills/release/SKILL.md', '---\nname: release\n---')
-  // 備份資料是 P1、發版是 P2
-  w.files.set(NOTES, withProcedure(3).replace('## 流程\n', '## 流程\n\n### 備份資料（4 次）\n- 時機：每週\n- 步驟：\n  1. 匯出\n  2. 上傳\n  3. 驗證\n'))
-  await startSession($)
-  expect(await promoteBlockOf($)).toContain('流程「備份資料」')
-  await say($, '備份資料那個流程不用做成 skill')
-  ctl.distillReply = actionsReply(
-    { op: 'in_project', id: 'P2', where: '.claude/skills/release/SKILL.md' },
-    { op: 'not_in_project', id: 'P1', quote: '不用做成 skill' },
-  )
-  await distillNow($)
-  const notes = w.files.get(NOTES) ?? ''
-  expect(notes).toContain('  3. 建立 GitHub release\n- 根據：1970-01-01 做過兩次\n- 專案：已在 .claude/skills/release/SKILL.md')
-  expect(notes).toContain('  3. 驗證\n- 專案：不放')
-  expect(w.get('promote:C--proj')).toEqual({})
-  ctl.curSid = 'S2'
   expect(await promoteBlockOf($)).toBeUndefined()
 })
 

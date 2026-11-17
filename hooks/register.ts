@@ -1054,11 +1054,18 @@ async function progressBlock($: EngineInterface) {
 }
 
 // ---------- 放進專案 ----------
+// fork-patch: Promotion aus (siehe promoteBlock). Nicht auf false setzen ohne neue Sicherheitspruefung.
+const FORK_PROMOTE_DISABLED = true
 const promoteKey = async ($: EngineInterface) => `promote:${await projectKey($)}`
 const loadAsked = async ($: EngineInterface) => ((await $.store.get(await promoteKey($))) as Record<string, PromoteAsk> | undefined) ?? {}
 
 // 這段對話開頭要交代的：session 啟動資料夾是 git repo 才交代；交給別段對話還沒收回的不交代
 async function promoteBlock($: EngineInterface, notes: Notes) {
+  // fork-patch: Promotion abgeschaltet. Der Upstream schiebt hier einen Auftrag in den Prompt, Regeln
+  // ohne Rueckfrage in AGENTS.md/CLAUDE.md/Hooks/Skills zu schreiben (promote.ts promoteText). Das
+  // widerspricht den Regeln dieses Forks und ist eine dauerhafte Injection-Flaeche. tools/fork-guard.sh
+  // prueft, dass diese Zeile bleibt.
+  if (FORK_PROMOTE_DISABLED) return undefined
   const root = slash(await $.session.root())
   if (!(await $.fs.exists(`${root}/.git`))) return undefined
   const asked = await loadAsked($)
